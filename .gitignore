@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.DS_Store
+# confidential input pack - never commit
+*.zip
+I Married*/
+data/
+.cache/
+# outputs quote the confidential scripts - share privately, never commit
+outputs/
+.claude/
