@@ -9,3 +9,10 @@ data/
 # outputs quote the confidential scripts - share privately, never commit
 outputs/
 .claude/
+# secrets - never commit
+.env
+.env.*
+.streamlit/secrets.toml
+# solution doc + review quote the confidential scripts: share via the submission, not the public repo
+docs/SOLUTION.*
+docs/quality_review.md

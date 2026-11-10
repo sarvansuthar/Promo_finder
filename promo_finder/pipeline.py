@@ -13,15 +13,21 @@ from .promo import DEFAULTS, build_pool, overlap, select
 PLAYBOOK = Path(__file__).resolve().parent.parent / "prompts" / "promo_playbook.md"
 
 
+def show_name(path_or_filename: str | Path) -> str:
+    """'I Married…-scripts (2).zip' -> 'I Married…'. The name is part of every prompt, so the CLI and
+    the app must derive it identically or their cached replies never match."""
+    p = Path(path_or_filename)
+    base = p.name if p.is_dir() else (p.stem if p.suffix.lower() in (".zip", ".txt") else p.name)
+    return re.sub(r"(-scripts)?(\s*\(\d+\))?$", "", base).strip()
+
+
 def load(input_path: str | Path, episodes: str | None = None) -> tuple[list[Episode], str]:
     """Parse a folder/zip and optionally keep an episode range like '1-5'."""
     eps = load_show(input_path)
     if episodes:
         lo, hi = (int(x) for x in episodes.split("-"))
         eps = [e for e in eps if lo <= e.num <= hi]
-    src = Path(input_path)
-    show = re.sub(r"(-scripts)?(\s*\(\d+\))?$", "", src.name if src.is_dir() else src.stem)
-    return eps, show
+    return eps, show_name(input_path)
 
 
 def run_pipeline(episodes: list[Episode], show: str, out: str | Path, *, mode: str = "llm",

@@ -9,9 +9,9 @@ Format (one block per beat):
     **CAMERA:**                     <- kind = camera / action / sound fx
     Start: (00:00.00) | End: (00:04.80)
     text...
-    **MATRIARCH (Cold, Commanding):**   <- kind = dialogue, speaker + emotion tags
+    **NARRATOR (Calm, Warm):**   <- kind = dialogue, speaker + emotion tags
     Start: (00:11.30) | End: (00:13.10)
-    "You should turn around, Juliana."
+    "This is an example line."
 
 Pure-stdlib, deterministic. Anything it cannot parse is skipped and counted, so a
 new show with slightly different formatting degrades instead of crashing.

@@ -4,12 +4,15 @@
 
 Users upload their own scripts and, for LLM mode, paste their OWN API key. The key lives only
 in this browser session's memory for the run: it is never written to disk, logged, or cached.
-Uploaded scripts and LLM replies go to a per-session temp folder, not a shared cache.
+Uploaded scripts go to a per-session temp folder. LLM replies share the CLI's .cache/ (keyed by the
+exact prompt), so no run repeats work another run already paid for.
 """
 from __future__ import annotations
 
+import hmac
 import io
 import json
+import os
 import shutil
 import tempfile
 import zipfile
@@ -19,7 +22,7 @@ import pandas as pd
 import streamlit as st
 
 from promo_finder.llm_client import LLMClient
-from promo_finder.pipeline import PLAYBOOK, load, run_pipeline
+from promo_finder.pipeline import PLAYBOOK, load, run_pipeline, show_name
 from promo_finder.promo import DEFAULTS
 from promo_finder.providers import load_provider
 
@@ -34,6 +37,29 @@ PROVIDERS = {
                               "help": "OpenAI, Groq, OpenRouter, Together, vLLM, Ollama… set the base URL"},
 }
 
+def secret(name: str, default=None):
+    """Streamlit Cloud secret (or env var when running locally). Never shown in the UI."""
+    try:
+        if name in st.secrets:
+            return st.secrets[name]
+    except Exception:                       # no secrets file at all
+        pass
+    return os.environ.get(name, default)
+
+
+# Optional "built-in model": the app owner's key, stored in Streamlit Cloud -> Settings -> Secrets
+# (never in the repo). Guarded by a passcode and an episode cap so a public link can't drain it.
+HOSTED = None
+if secret("HOSTED_API_KEY"):
+    HOSTED = {"provider": secret("HOSTED_PROVIDER", "gemini"), "model": secret("HOSTED_MODEL", "gemini-3.5-flash"),
+              "key": secret("HOSTED_API_KEY"), "base_url": secret("HOSTED_BASE_URL"),
+              "passcode": secret("HOSTED_PASSCODE"), "max_eps": int(secret("HOSTED_MAX_EPISODES", 10)),
+              "rpm": float(secret("HOSTED_RPM", 8))}
+# One cache for the CLI and the app: a reply is reused only for the identical prompt (same script,
+# same model, same playbook), so sharing it never exposes one user's show to another, and it stops
+# the app from spending quota on episodes the CLI (or another session) already ran.
+SHARED_CACHE = Path(__file__).resolve().parent / ".cache"
+
 ss = st.session_state
 if "workdir" not in ss:
     ss.workdir = Path(tempfile.mkdtemp(prefix="promo_"))
@@ -42,18 +68,30 @@ if "workdir" not in ss:
 # ------------------------------------------------------------------ sidebar: settings
 with st.sidebar:
     st.header("Settings")
-    mode = st.radio("Mode", ["LLM (your API key)", "Rules only (no key)", "Demo (mock model, no key)"],
+    modes = (["LLM (built-in model)"] if HOSTED else []) + \
+        ["LLM (your API key)", "Rules only (no key)", "Demo (mock model, no key)"]
+    mode = st.radio("Mode", modes,
                     help="Rules = keyword scoring, instant and free. Demo = runs the full LLM pipeline "
                          "with a fake model so you can see the flow; its picks are not real judgments.")
-    provider_label, api_key, model, base_url, rpm = None, "", "", "", 0.0
-    if mode.startswith("LLM"):
+    provider_label, api_key, model, base_url, rpm, passcode = None, "", "", "", 0.0, ""
+    if mode == "LLM (built-in model)":
+        st.caption(f"Model: **{HOSTED['provider']} / {HOSTED['model']}**, provided by the app owner. "
+                   f"Up to {HOSTED['max_eps']} episodes per run.")
+        if HOSTED["passcode"]:
+            passcode = st.text_input("Passcode", type="password", help="Ask the app owner.")
+        rpm = HOSTED["rpm"]
+        use_playbook = st.checkbox("Use editorial playbook", value=True)
+        per_episode = st.slider("Promos proposed per episode", 1, 5, 3)
+    elif mode.startswith("LLM"):
         provider_label = st.selectbox("Model provider", list(PROVIDERS))
         pv = PROVIDERS[provider_label]
         api_key = st.text_input("API key", type="password", help=pv["help"] + ". Used only for this run; "
                                 "never stored.")
         model = st.text_input("Model id", value=pv["model"])
         if pv["base_url"]:
-            base_url = st.text_input("Base URL", placeholder="https://api.groq.com/openai/v1")
+            base_url = st.text_input("Base URL", value="https://api.openai.com/v1",
+                                     help="OpenAI: https://api.openai.com/v1 · Groq: https://api.groq.com/openai/v1 · "
+                                          "OpenRouter: https://openrouter.ai/api/v1 · Ollama: http://localhost:11434/v1")
         rpm = st.number_input("Max requests / minute (0 = no limit)", 0.0, 600.0, float(pv["rpm"]),
                               help="Free tiers need ~8.")
         use_playbook = st.checkbox("Use editorial playbook", value=True,
@@ -96,7 +134,7 @@ if ss.get("upload_sig") != sig:
         else:
             (up / Path(f.name).name).write_bytes(data)
     ss.upload_sig, ss.result = sig, None
-    ss.show = Path(files[0].name).stem if len(files) == 1 else "Uploaded show"
+    ss.show = show_name(files[0].name) if len(files) == 1 else "Uploaded show"
 
 try:
     all_eps, _ = load(ss.workdir / "input")
@@ -127,20 +165,36 @@ st.caption(f"{n_sel} episodes selected."
 def build_client(outdir: Path):
     if mode.startswith("Demo"):
         return LLMClient(load_provider("mock"), outdir, cache_dir=ss.workdir / "cache")
+    if mode == "LLM (built-in model)":
+        opts = {"api_key": HOSTED["key"]}
+        if HOSTED["base_url"]:
+            opts["base_url"] = HOSTED["base_url"]
+        # shared cache: re-running a show someone already ran costs no quota
+        return LLMClient(load_provider(HOSTED["provider"], HOSTED["model"], **opts), outdir,
+                         cache_dir=SHARED_CACHE, rpm=HOSTED["rpm"])
     pv = PROVIDERS[provider_label]
     opts = {"api_key": api_key.strip()}
     if base_url:
         opts["base_url"] = base_url.strip()
     return LLMClient(load_provider(pv["spec"], model.strip() or None, **opts), outdir,
-                     cache_dir=ss.workdir / "cache", rpm=rpm)
+                     cache_dir=SHARED_CACHE, rpm=rpm)
 
 
 if run:
-    if mode.startswith("LLM") and not api_key.strip():
+    if mode == "LLM (built-in model)":
+        if HOSTED["passcode"] and not hmac.compare_digest(passcode.strip(), str(HOSTED["passcode"])):
+            st.error("Wrong passcode for the built-in model. Use your own key, Rules or Demo mode instead.")
+            st.stop()
+        if n_sel > HOSTED["max_eps"]:
+            st.error(f"The built-in model is limited to {HOSTED['max_eps']} episodes per run "
+                     f"(you selected {n_sel}). Narrow the episode range, or use your own key.")
+            st.stop()
+    elif mode.startswith("LLM") and not api_key.strip():
         st.error("Paste an API key in the sidebar, or switch to Rules / Demo mode.")
         st.stop()
-    if mode.startswith("LLM") and PROVIDERS[provider_label]["base_url"] and not base_url.strip():
-        st.error("Set the Base URL for the OpenAI-compatible provider.")
+    if mode == "LLM (your API key)" and PROVIDERS[provider_label]["base_url"] and not base_url.strip():
+        st.error("Set the Base URL for the OpenAI-compatible provider (e.g. https://api.openai.com/v1, "
+                 "https://api.groq.com/openai/v1). For Gemini, pick 'Gemini (Google)' as the provider instead.")
         st.stop()
     episodes = [e for e in load(ss.workdir / "input")[0] if lo <= e.num <= hi]
     outdir = ss.workdir / "output"
@@ -163,7 +217,7 @@ if run:
                     pass
         try:
             client = build_client(outdir) if llm_mode else None
-            if client is not None and not mode.startswith("Demo"):
+            if client is not None and mode == "LLM (your API key)":   # built-in: save quota, skip ping
                 ok, msg = client.ping()
                 if not ok:
                     status.update(label="Model check failed", state="error")

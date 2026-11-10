@@ -81,8 +81,11 @@ class OpenAICompatible(Provider):
     def __init__(self, model=None, base_url=None, api_key_env=None, json_mode="true", timeout="120",
                  api_key=None, **opts):
         super().__init__(model or self.default_model, **opts)
-        from openai import OpenAI
-        import openai
+        try:
+            from openai import OpenAI
+            import openai
+        except ImportError:
+            raise SystemExit(f"{self.name} needs the openai package: pip3 install openai") from None
         self._err = openai
         key_env = api_key_env or self.default_key_env
         key = api_key or os.environ.get(key_env) or ("not-needed" if base_url or self.default_base_url else None)
@@ -108,7 +111,9 @@ class OpenAICompatible(Provider):
             # some servers (e.g. Gemini) return error bodies the SDK can't summarise: show the raw body
             body = (getattr(e, "response", None) and e.response.text or "")[:500]
             if e.status_code == 429:
-                if re.search(r"per ?day|PerDay|daily", body, re.I):
+                # out of money / daily cap: waiting won't help, so stop instead of retrying
+                if re.search(r"per ?day|PerDay|daily|insufficient_quota|no credits|credit balance|billing|"
+                             r"exceeded your current quota", body, re.I):
                     raise QuotaExhausted(_api_message(body)) from None
                 m = re.search(r'"retryDelay":\s*"(\d+(?:\.\d+)?)s"', body)
                 raise RetryableError(f"429 rate limit: {_api_message(body)}",
@@ -158,7 +163,10 @@ class Anthropic(Provider):
 
     def __init__(self, model=None, base_url=None, api_key_env=None, effort="medium", api_key=None, **opts):
         super().__init__(model or "claude-opus-5-5", **opts)
-        import anthropic
+        try:
+            import anthropic
+        except ImportError:
+            raise SystemExit("anthropic needs the anthropic package: pip3 install anthropic") from None
         self._sdk = anthropic
         kw = {}
         if base_url:

@@ -128,7 +128,11 @@ class LLMClient:
                   "required": ["ok", "sum"], "additionalProperties": False}
         saved, self.use_cache = self.use_cache, False
         t0 = time.time()
-        res = self.complete_json("You are a test endpoint.", 'Return ok="yes" and sum = 17 + 25.', schema, "ping")
+        try:
+            res = self.complete_json("You are a test endpoint.", 'Return ok="yes" and sum = 17 + 25.', schema, "ping")
+        except QuotaExhausted as e:
+            self.use_cache = saved
+            return False, f"out of quota / credits: {e}"
         self.use_cache = saved
         if res and res.get("sum") == 42:
             return True, f"OK in {time.time() - t0:.1f}s (repairs needed: {self.repairs})"

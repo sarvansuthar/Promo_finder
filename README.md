@@ -11,6 +11,8 @@ inside 3 s. A keyword-rules mode stays as a free offline fallback and as a secon
 
 ## Run
 
+**Step-by-step guide, deployment and troubleshooting: [RUN_GUIDE.md](RUN_GUIDE.md).**
+
 ```bash
 pip3 install openai                                  # only needed for gemini / openai-compatible
 export GEMINI_API_KEY=...                            # free key: https://aistudio.google.com/apikey
