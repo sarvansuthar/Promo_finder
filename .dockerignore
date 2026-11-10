@@ -1,0 +1,9 @@
+.git
+.cache
+outputs
+*.zip
+__pycache__
+.env
+.streamlit/secrets.toml
+docs/SOLUTION.*
+docs/quality_review.md

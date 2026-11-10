@@ -1,3 +1,14 @@
+---
+title: Promo Ranker
+emoji: 🎬
+colorFrom: indigo
+colorTo: pink
+sdk: docker
+app_port: 7860
+pinned: false
+short_description: Find and rank promo clips in microdrama screenplays
+---
+
 # Promo Ranker — find the best promos in a microdrama screenplay
 
 Reads a show's timestamped screenplays (one `.txt` per episode, or a `.zip` of them) and returns
