@@ -68,8 +68,11 @@ if "workdir" not in ss:
 # ------------------------------------------------------------------ sidebar: settings
 with st.sidebar:
     st.header("Settings")
+    # With the owner's key configured, visitors don't type a key (set ALLOW_USER_KEYS=1 to offer both)
+    allow_user_keys = not HOSTED or str(secret("ALLOW_USER_KEYS", "")).lower() in ("1", "true", "yes")
     modes = (["LLM (built-in model)"] if HOSTED else []) + \
-        ["LLM (your API key)", "Rules only (no key)", "Demo (mock model, no key)"]
+        (["LLM (your API key)"] if allow_user_keys else []) + \
+        ["Rules only (no key)", "Demo (mock model, no key)"]
     mode = st.radio("Mode", modes,
                     help="Rules = keyword scoring, instant and free. Demo = runs the full LLM pipeline "
                          "with a fake model so you can see the flow; its picks are not real judgments.")
@@ -183,7 +186,7 @@ def build_client(outdir: Path):
 if run:
     if mode == "LLM (built-in model)":
         if HOSTED["passcode"] and not hmac.compare_digest(passcode.strip(), str(HOSTED["passcode"])):
-            st.error("Wrong passcode for the built-in model. Use your own key, Rules or Demo mode instead.")
+            st.error("Wrong passcode for the built-in model. Ask the app owner, or use Rules or Demo mode.")
             st.stop()
         if n_sel > HOSTED["max_eps"]:
             st.error(f"The built-in model is limited to {HOSTED['max_eps']} episodes per run "
