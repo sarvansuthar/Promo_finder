@@ -1,7 +1,7 @@
 # How to run Promo Ranker
 
 ## 0. Use the deployed app (nothing to install)
-Open **https://promo-finder-wy1j.onrender.com**. The first load can take about a minute, because
+Open **https://promo-finder-1-1ksu.onrender.com**. The first load can take about a minute, because
 the free server sleeps when nobody is using it.
 
 1. **Upload the scripts:** one `.zip` of the episode `.txt` files, or several `.txt` files.
