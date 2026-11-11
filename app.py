@@ -153,7 +153,10 @@ st.success(f"Loaded **{len(all_eps)} episodes** ({min(nums)}–{max(nums)}), "
 
 c1, c2 = st.columns([3, 1])
 with c1:
-    lo, hi = st.select_slider("Episodes to process", options=nums, value=(min(nums), max(nums)))
+    # Built-in model: start within the owner's per-run cap instead of selecting every episode
+    cap = HOSTED["max_eps"] if mode == "LLM (built-in model)" else len(nums)
+    lo, hi = st.select_slider("Episodes to process", options=nums,
+                              value=(nums[0], nums[min(cap, len(nums)) - 1]))
 with c2:
     st.write("")
     run = st.button("▶ Find promos", type="primary", width="stretch")

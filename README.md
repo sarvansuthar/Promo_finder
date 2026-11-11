@@ -22,6 +22,8 @@ inside 3 s. A keyword-rules mode stays as a free offline fallback and as a secon
 
 ## Run
 
+**Live app: https://promo-finder-wy1j.onrender.com** (how to use it: [RUN_GUIDE.md, section 0](RUN_GUIDE.md#0-use-the-deployed-app-nothing-to-install)).
+
 **Step-by-step guide, deployment and troubleshooting: [RUN_GUIDE.md](RUN_GUIDE.md).**
 
 ```bash

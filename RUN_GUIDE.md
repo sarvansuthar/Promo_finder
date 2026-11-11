@@ -1,6 +1,27 @@
 # How to run Promo Ranker
 
-## 1. Quick start (web app)
+## 0. Use the deployed app (nothing to install)
+Open **https://promo-finder-wy1j.onrender.com**. The first load can take about a minute, because
+the free server sleeps when nobody is using it.
+
+1. **Upload the scripts:** one `.zip` of the episode `.txt` files, or several `.txt` files.
+2. **Pick a Mode** in the left sidebar (on a phone, tap **>** at the top left to open it):
+   - **LLM (built-in model):** the default. It uses the app owner's Gemini key, so you don't need
+     your own. Enter the **passcode** if the owner gave you one. Each run can use up to 10 episodes.
+   - **Rules only:** keyword scoring. It's free and instant, but less accurate.
+   - **Demo:** a fake model that shows the flow. Its picks aren't real judgments.
+3. **Choose the episodes** with the slider, for example 1–10.
+4. Click **▶ Find promos**. The LLM takes about 6–10 seconds per episode, and a progress bar shows
+   where it is.
+5. **Read the results:** the ranked promos, each with its episode, timecodes, hook, cliffhanger,
+   why it works and why it's at that slot, followed by the quality checks.
+6. **Download** the results (`promos.md`, `promos.json`, the CSV of all candidates, and
+   `quality.md`). They're lost when you close the tab.
+
+To try your own model, run the app locally (section 1). The **LLM (your API key)** option
+appears there.
+
+## 1. Quick start (web app on your computer)
 ```bash
 cd Promo_Ranker
 pip3 install -r requirements.txt     # installs the app plus the Gemini, OpenAI and Claude clients
